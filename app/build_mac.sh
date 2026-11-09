@@ -18,7 +18,7 @@ iconutil -c icns build/done.iconset -o build/done.icns
 
 rm -rf dist
 pyinstaller --noconfirm --windowed --name done --osx-bundle-identifier app.done \
-  --icon build/done.icns --collect-submodules done --log-level WARN run.py
+  --icon build/done.icns --collect-submodules done --hidden-import pystray._darwin --log-level WARN run.py
 
 # App de barre de menus (pas d'icône dans le Dock) + signature ad hoc
 plutil -insert LSUIElement -bool true dist/done.app/Contents/Info.plist
