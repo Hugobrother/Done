@@ -5,8 +5,10 @@ import sys
 from done import core  # noqa: F401  (force l'inclusion du paquet)
 
 if "--version" in sys.argv:
-    print("done. 0.1")
-    sys.exit(0)
+    import os, certifi
+    ok = os.path.exists(certifi.where())
+    print("done. 0.1 | certificates:", "ok" if ok else "MISSING")
+    sys.exit(0 if ok else 1)
 
 if "--ui" in sys.argv:
     from done import ui

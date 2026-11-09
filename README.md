@@ -18,7 +18,7 @@ No backend: Firebase only serves static pages (free tier). Downloads are served 
 cd app
 python3 -m venv .venv
 source .venv/bin/activate
-pip install pystray pillow qrcode pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa
+pip install pystray pillow qrcode certifi pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa
 python3 -m done
 ```
 Windows: `pip install pystray pillow qrcode uiautomation psutil`
@@ -26,8 +26,8 @@ Linux: `pip install pystray pillow qrcode "PyGObject<3.51" python-xlib` (+ `gir1
 
 ## Release
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.4
+git push origin v0.1.4
 ```
 GitHub Actions builds `done-mac.zip`, `done-windows.exe`, `done-linux` and attaches them to the release.
 The website links to `releases/latest/download/...`, so it updates by itself.

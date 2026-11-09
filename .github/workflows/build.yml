@@ -42,7 +42,7 @@ jobs:
 
       - name: Python deps
         run: |
-          pip install pyinstaller pystray pillow qrcode
+          pip install pyinstaller pystray pillow qrcode certifi
           case "$RUNNER_OS" in
             macOS)   pip install pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa ;;
             Windows) pip install uiautomation psutil ;;
@@ -53,7 +53,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           pyinstaller --noconfirm --windowed --name done --osx-bundle-identifier app.done \
-            --icon ../public/icon-512.png --collect-submodules done \
+            --icon ../public/icon-512.png --collect-submodules done --collect-data certifi \
             --hidden-import pystray._darwin --log-level WARN run.py
           dist/done.app/Contents/MacOS/done --version
           plutil -insert LSUIElement -bool true dist/done.app/Contents/Info.plist
@@ -66,7 +66,7 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then HIDDEN="--hidden-import pystray._win32"; else HIDDEN="--hidden-import pystray._appindicator --hidden-import pystray._xorg --hidden-import pystray._gtk"; fi
           pyinstaller --noconfirm --onefile --windowed --name done \
-            --icon ../public/icon-512.png --collect-submodules done $HIDDEN --log-level WARN run.py
+            --icon ../public/icon-512.png --collect-submodules done --collect-data certifi $HIDDEN --log-level WARN run.py
           if [ "$RUNNER_OS" = "Windows" ]; then mv dist/done.exe dist/${{ matrix.asset }}; else mv dist/done dist/${{ matrix.asset }}; fi
           if [ "$RUNNER_OS" = "Linux" ]; then ./dist/${{ matrix.asset }} --version; fi
 

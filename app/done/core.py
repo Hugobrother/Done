@@ -1,5 +1,5 @@
 """Config, envoi ntfy, démarrage auto. Commun aux 3 OS."""
-import json, os, sys, secrets, subprocess, urllib.request
+import json, os, sys, secrets, ssl, subprocess, urllib.request
 from pathlib import Path
 
 APP_NAME = "done."
@@ -60,6 +60,18 @@ def pair_url(cfg):
     return f"{PAIR_PAGE}?t={cfg['topic']}"
 
 
+def _ssl_context():
+    # Les apps packagées n'ont pas accès aux certificats système : on embarque ceux de certifi
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        return ssl.create_default_context()
+
+
+SSL_CTX = _ssl_context()
+
+
 def send(cfg, text, loud=True, tag="white_check_mark"):
     """Envoie une notif ntfy. loud=True -> prio max (son + vibration), False -> prio min (silencieux)."""
     req = urllib.request.Request(
@@ -68,7 +80,7 @@ def send(cfg, text, loud=True, tag="white_check_mark"):
         headers={"Title": "done.", "Priority": "5" if loud else "1", "Tags": tag},
     )
     try:
-        urllib.request.urlopen(req, timeout=10)
+        urllib.request.urlopen(req, timeout=10, context=SSL_CTX)
         return True
     except Exception as e:
         print("ntfy error:", e, file=sys.stderr)

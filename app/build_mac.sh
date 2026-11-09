@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -q --upgrade pip
-pip install -q pyinstaller pystray pillow qrcode pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa
+pip install -q pyinstaller pystray pillow qrcode certifi pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa
 
 # Icône .icns à partir du PNG du site
 mkdir -p build/done.iconset
@@ -18,7 +18,7 @@ iconutil -c icns build/done.iconset -o build/done.icns
 
 rm -rf dist
 pyinstaller --noconfirm --windowed --name done --osx-bundle-identifier app.done \
-  --icon build/done.icns --collect-submodules done --hidden-import pystray._darwin --log-level WARN run.py
+  --icon build/done.icns --collect-submodules done --collect-data certifi --hidden-import pystray._darwin --log-level WARN run.py
 
 # App de barre de menus (pas d'icône dans le Dock) + signature ad hoc
 plutil -insert LSUIElement -bool true dist/done.app/Contents/Info.plist
