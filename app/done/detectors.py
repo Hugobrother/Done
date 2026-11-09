@@ -4,15 +4,24 @@ dans l'app Claude desktop (Mac, Windows) et dans claude.ai sur le web (Mac, Wind
 scan(cfg) -> {source_id: (stop_visible, approval_visible)}
 """
 import sys
+import unicodedata
 
-STOP_WORDS = ("stop", "arrêter", "arreter", "detener", "stoppen")
+# Mots-clés SANS accents : les libellés sont normalisés avant comparaison
+STOP_WORDS = ("stop", "arreter", "detener", "stoppen")
 ALLOW_WORDS = ("allow", "autoriser", "approve", "approuver", "permitir", "erlauben")
 DENY_WORDS = ("deny", "refuser", "reject", "rejeter", "denegar", "ablehnen", "don't allow", "ne pas autoriser")
 MAX_NODES = 8000
 
 
+def norm(s):
+    """minuscules + sans accents ('Arrêter' -> 'arreter'), quel que soit l'encodage du ê"""
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c)).strip().lower()
+
+
 def classify(labels):
-    short = [l for l in labels if l and len(l) < 40]
+    # libellés courts seulement : les boutons « actions du message » contiennent tout le texte
+    short = [n for n in (norm(l) for l in labels) if n and len(n) < 40]
     has = lambda words: any(w in l for l in short for w in words)
     return has(STOP_WORDS), has(ALLOW_WORDS) and has(DENY_WORDS)
 
@@ -82,11 +91,38 @@ if sys.platform == "darwin":
 
 # ======================================================================
 elif sys.platform == "win32":
+    # Méthode validée sur un vrai PC Windows :
+    # - EnumWindows + PID : on n'interroge que les fenêtres Claude / navigateurs
+    # - une seule requête UIA FindAll(Descendants, Bouton) par fenêtre
+    # - try par bouton : ils disparaissent souvent pendant la génération
+    import ctypes
+    from ctypes import wintypes
+
     import psutil
-    import uiautomation as auto
+    import uiautomation as auto  # noqa: F401  (initialise COM / UIA)
+
+    try:
+        from uiautomation.uiautomation import _AutomationClient
+    except ImportError:
+        _AutomationClient = auto._AutomationClient
 
     APP_EXES = {"claude.exe"}
     BROWSER_EXES = {"chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe", "arc.exe"}
+    TREE_DESCENDANTS = 4          # TreeScope_Descendants
+    PROP_CONTROL_TYPE = 30003     # UIA_ControlTypePropertyId
+    TYPE_BUTTON = 50000           # UIA_ButtonControlTypeId
+
+    user32 = ctypes.windll.user32
+    ENUM_PROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    _uia = {}
+
+    def _client():
+        # créé dans le thread de détection (après l'init COM de ce thread)
+        if "uia" not in _uia:
+            uia = _AutomationClient.instance().IUIAutomation
+            _uia["uia"] = uia
+            _uia["cond"] = uia.CreatePropertyCondition(PROP_CONTROL_TYPE, TYPE_BUTTON)
+        return _uia["uia"], _uia["cond"]
 
     def request_permission():
         return True
@@ -94,26 +130,55 @@ elif sys.platform == "win32":
     def status():
         return True, "Watching Claude"
 
+    def _windows(pids):
+        """[(hwnd, pid, titre)] des fenêtres visibles appartenant à ces process."""
+        found = []
+
+        def cb(hwnd, _):
+            n = user32.GetWindowTextLengthW(hwnd)
+            if user32.IsWindowVisible(hwnd) and n > 0:
+                pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                if pid.value in pids:
+                    buf = ctypes.create_unicode_buffer(n + 1)
+                    user32.GetWindowTextW(hwnd, buf, n + 1)
+                    found.append((hwnd, pid.value, buf.value))
+            return True
+
+        user32.EnumWindows(ENUM_PROC(cb), 0)
+        return found
+
+    def _labels(hwnd):
+        uia, cond = _client()
+        out = []
+        try:
+            arr = uia.ElementFromHandle(hwnd).FindAll(TREE_DESCENDANTS, cond)
+            for i in range(min(arr.Length, MAX_NODES)):
+                try:
+                    name = arr.GetElement(i).CurrentName
+                    if name:
+                        out.append(name)
+                except Exception:
+                    pass  # bouton disparu pendant la lecture
+        except Exception as e:
+            print("uia error:", e, file=sys.stderr)
+        return out
+
     def scan(cfg):
+        wanted = {}
+        for p in psutil.process_iter(["name"]):
+            exe = (p.info["name"] or "").lower()
+            if (exe in APP_EXES and cfg["watch_app"]) or (exe in BROWSER_EXES and cfg["watch_web"]):
+                wanted[p.pid] = exe
         out = {}
-        for w in auto.GetRootControl().GetChildren():
-            try:
-                exe = psutil.Process(w.ProcessId).name().lower()
-            except Exception:
+        if not wanted:
+            return out
+        for hwnd, pid, title in _windows(set(wanted)):
+            exe = wanted[pid]
+            is_app = exe in APP_EXES
+            if not is_app and "claude" not in title.lower():
                 continue
-            is_app = exe in APP_EXES and cfg["watch_app"]
-            is_web = exe in BROWSER_EXES and cfg["watch_web"]
-            if not (is_app or is_web):
-                continue
-            if is_web and "claude" not in (w.Name or "").lower():
-                continue
-            labels, n = [], 0
-            for c, _ in auto.WalkControl(w, maxDepth=80):
-                n += 1
-                if n > MAX_NODES:
-                    break
-                if c.ControlType == auto.ControlType.ButtonControl:
-                    labels.append((c.Name or "").strip().lower())
+            labels = _labels(hwnd)
             if labels:
                 _merge(out, "app" if is_app else f"web:{exe}", *classify(labels))
         return out
