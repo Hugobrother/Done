@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-latest
             asset: done-mac.zip
           - os: windows-latest
             asset: done-windows.exe
