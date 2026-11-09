@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>done. — Pair your phone</title>
+<meta name="theme-color" content="#262624">
+<link rel="icon" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#262624;--card:#30302E;--text:#FAF9F5;--muted:#C9C6BE;--dim:#A9A69E;--accent:#D97757;--ink:#1A1A19}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;font-size:17px;line-height:1.5;-webkit-font-smoothing:antialiased}
+main{max-width:520px;margin:0 auto;padding:32px 16px 48px;display:flex;flex-direction:column;gap:16px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:22px}
+h1{margin:8px 0 0;font-size:32px;line-height:1.1;letter-spacing:-.02em}
+p{margin:0}.muted{color:var(--muted)}.dim{color:var(--dim);font-size:14px}
+.step{background:var(--card);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.step h2{margin:0;font-size:18px;display:flex;align-items:center;gap:10px}
+.n{flex:none;width:28px;height:28px;border-radius:50%;background:#45443F;display:inline-flex;align-items:center;justify-content:center;font-size:14px}
+.btn{display:flex;align-items:center;justify-content:center;min-height:52px;padding:0 20px;border-radius:14px;border:0;background:var(--accent);color:var(--ink);font:inherit;font-weight:700;text-decoration:none;cursor:pointer;width:100%}
+.btn.ghost{background:transparent;border:1px solid #5A5853;color:var(--text);font-weight:500}
+.topic{font-family:ui-monospace,Menlo,monospace;font-size:16px;background:#1F1F1D;border-radius:12px;padding:12px 14px;word-break:break-all;user-select:all}
+.ok{color:#9BD5A6}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <div class="logo">
+    <svg width="40" height="22" viewBox="0 0 212 112" aria-hidden="true"><path d="M48 10 H172 A38 38 0 0 1 172 86 H52 L22 104 L30 80 A38 38 0 0 1 48 10 Z" fill="#30302E" stroke="#FAF9F5" stroke-opacity=".25" stroke-width="4"/><circle cx="64" cy="48" r="12" fill="#FAF9F5" opacity=".35"/><circle cx="106" cy="48" r="12" fill="#FAF9F5" opacity=".65"/><circle cx="172" cy="48" r="28" fill="#D97757"/></svg>
+    done.
+  </div>
+  <h1>Pair your phone</h1>
+  <p class="muted" id="intro">Three quick steps. You only do this once.</p>
+
+  <div id="no-topic" class="step" hidden>
+    <p>This link is missing your channel. Open <b>done.</b> on your computer, click <b>Pair phone…</b> and scan the QR code again.</p>
+  </div>
+
+  <div id="flow">
+    <section class="step">
+      <h2><span class="n">1</span>Install ntfy (free)</h2>
+      <p class="muted">ntfy is the free app that shows done.'s notifications. No account needed.</p>
+      <a class="btn" id="store" href="https://ntfy.sh" target="_blank" rel="noopener">Get ntfy</a>
+      <p class="dim">Already installed? Go to step 2.</p>
+    </section>
+
+    <section class="step" style="margin-top:16px">
+      <h2><span class="n">2</span>Connect to your channel</h2>
+      <div id="android-sub" hidden>
+        <a class="btn" id="subscribe" href="#">Open in ntfy &amp; subscribe</a>
+        <p class="dim" style="margin-top:10px">ntfy opens and subscribes automatically.</p>
+      </div>
+      <div id="ios-sub" hidden style="display:flex;flex-direction:column;gap:12px">
+        <button class="btn" id="copy" type="button">Copy my channel</button>
+        <p class="muted">Then in ntfy: tap <b>+</b>, paste, tap <b>Subscribe</b>.</p>
+      </div>
+      <p class="dim">Your private channel:</p>
+      <div class="topic" id="topic"></div>
+    </section>
+
+    <section class="step" style="margin-top:16px">
+      <h2><span class="n">3</span>Check it works</h2>
+      <button class="btn ghost" id="test" type="button">Send a test notification</button>
+      <p class="dim" id="test-status" aria-live="polite"></p>
+    </section>
+  </div>
+</main>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const topic = new URLSearchParams(location.search).get("t") || "";
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(topic)) {
+    $("flow").hidden = true; $("intro").hidden = true; $("no-topic").hidden = false; return;
+  }
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/.test(ua);
+
+  $("topic").textContent = topic;
+  if (isIOS) $("store").href = "https://apps.apple.com/app/ntfy/id1625396347";
+  else if (isAndroid) $("store").href = "https://play.google.com/store/apps/details?id=io.heckel.ntfy";
+
+  if (isAndroid) {
+    $("android-sub").hidden = false;
+    $("subscribe").href = "ntfy://ntfy.sh/" + topic + "?display=done.";
+  } else {
+    $("ios-sub").hidden = false;
+    $("copy").onclick = async () => {
+      try { await navigator.clipboard.writeText(topic); $("copy").textContent = "Copied ✓  Now open ntfy"; }
+      catch { $("copy").textContent = "Long-press the channel below to copy it"; }
+    };
+  }
+
+  $("test").onclick = async () => {
+    $("test-status").textContent = "Sending…";
+    try {
+      const r = await fetch("https://ntfy.sh/" + topic, {
+        method: "POST", body: "Test: your phone is paired ✅",
+        headers: { Title: "done.", Tags: "tada", Priority: "5" }
+      });
+      if (!r.ok) throw new Error(r.status);
+      $("test-status").innerHTML = '<span class="ok">Sent. If nothing showed up, check you subscribed in ntfy and allowed its notifications.</span>';
+    } catch (e) {
+      $("test-status").textContent = "Couldn't send. Check your connection and try again.";
+    }
+  };
+})();
+</script>
+</body>
+</html>

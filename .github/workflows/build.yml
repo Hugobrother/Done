@@ -1,0 +1,78 @@
+# Construit done. pour Mac, Windows et Linux.
+# - Push d'un tag vX.Y.Z  -> build + Release GitHub (liens du site : releases/latest/download/...)
+# - Lancement manuel (Actions > build > Run workflow) -> build seul, fichiers dans "Artifacts"
+name: build
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            asset: done-mac.zip
+          - os: windows-latest
+            asset: done-windows.exe
+          - os: ubuntu-22.04
+            asset: done-linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgirepository1.0-dev libcairo2-dev pkg-config gir1.2-atspi-2.0 gir1.2-ayatanaappindicator3-0.1
+
+      - name: Python deps
+        run: |
+          pip install pyinstaller pystray pillow qrcode
+          case "$RUNNER_OS" in
+            macOS)   pip install pyobjc-framework-ApplicationServices pyobjc-framework-Cocoa ;;
+            Windows) pip install uiautomation psutil ;;
+            Linux)   pip install "PyGObject<3.51" python-xlib ;;
+          esac
+
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --noconfirm --windowed --name done --osx-bundle-identifier app.done \
+            --icon ../public/icon-512.png --collect-submodules done --log-level WARN run.py
+          plutil -insert LSUIElement -bool true dist/done.app/Contents/Info.plist
+          plutil -replace CFBundleShortVersionString -string "${GITHUB_REF_NAME#v}" dist/done.app/Contents/Info.plist || true
+          codesign --force --deep -s - dist/done.app
+          ditto -c -k --keepParent dist/done.app dist/${{ matrix.asset }}
+
+      - name: Build (Windows / Linux)
+        if: runner.os != 'macOS'
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name done \
+            --icon ../public/icon-512.png --collect-submodules done --log-level WARN run.py
+          if [ "$RUNNER_OS" = "Windows" ]; then mv dist/done.exe dist/${{ matrix.asset }}; else mv dist/done dist/${{ matrix.asset }}; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: app/dist/${{ matrix.asset }}
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/dist/${{ matrix.asset }}
