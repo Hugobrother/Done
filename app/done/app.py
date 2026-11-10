@@ -101,6 +101,28 @@ def _listen_for_show():
     threading.Thread(target=loop, daemon=True).start()
 
 
+def _watch_reopen_mac():
+    """Double-clic sur done.app alors qu'il tourne : macOS réactive la copie existante
+    au lieu d'en lancer une 2e. On écoute cette activation pour ouvrir Settings."""
+    import os
+    from AppKit import NSWorkspace, NSWorkspaceDidActivateApplicationNotification
+    from Foundation import NSObject
+
+    last = {"t": 0.0}
+
+    class _Reopen(NSObject):
+        def activated_(self, note):
+            app = note.userInfo().objectForKey_("NSWorkspaceApplicationKey")
+            if app is not None and app.processIdentifier() == os.getpid() and time.time() - last["t"] > 2:
+                last["t"] = time.time()
+                core.open_window("settings")
+
+    obs = _Reopen.alloc().init()
+    NSWorkspace.sharedWorkspace().notificationCenter().addObserver_selector_name_object_(
+        obs, "activated:", NSWorkspaceDidActivateApplicationNotification, None)
+    return obs  # à garder en vie
+
+
 def main():
     if _already_running():
         return  # l'instance existante ouvre sa fenêtre
@@ -181,8 +203,15 @@ def main():
     Engine(state).start()
     threading.Thread(target=reload_loop, daemon=True).start()
 
+    keep = []
+
     def setup(ic):
         ic.visible = True
+        if sys.platform == "darwin":
+            try:
+                keep.append(_watch_reopen_mac())
+            except Exception as e:
+                print("reopen watch error:", e, file=sys.stderr)
         if sys.platform == "darwin":
             try:  # icône « template » : s'adapte au mode clair/sombre de la barre de menus
                 ic._status_item.button().image().setTemplate_(True)
