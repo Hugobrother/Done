@@ -10,6 +10,13 @@ if "--version" in sys.argv:
     print("done. 0.1 | certificates:", "ok" if ok else "MISSING")
     sys.exit(0 if ok else 1)
 
+if "--check-ax" in sys.argv:
+    # Process neuf : macOS donne la vraie valeur de la permission (pas celle mise en cache)
+    if sys.platform == "darwin":
+        from ApplicationServices import AXIsProcessTrusted
+        sys.exit(0 if AXIsProcessTrusted() else 1)
+    sys.exit(0)
+
 if "--ui" in sys.argv:
     from done import ui
     ui.run(sys.argv[sys.argv.index("--ui") + 1])

@@ -81,6 +81,7 @@ def _already_running():
 
 def _listen_for_show():
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         srv.bind(("127.0.0.1", PORT))
     except OSError:
@@ -167,6 +168,15 @@ def main():
     elif not background:
         # ouvert à la main : on montre toujours une fenêtre (l'icône peut être cachée par l'encoche)
         core.open_window("settings")
+
+    # Mac : la permission n'est prise en compte qu'au redémarrage -> on se relance tout seul
+    if sys.platform == "darwin" and not detectors.status()[0]:
+        def wait_permission():
+            while not core.ax_trusted_fresh():
+                time.sleep(2)
+            core.relaunch_later()
+            icon.stop()
+        threading.Thread(target=wait_permission, daemon=True).start()
 
     Engine(state).start()
     threading.Thread(target=reload_loop, daemon=True).start()

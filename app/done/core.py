@@ -104,6 +104,29 @@ def quit_running():
         pass
 
 
+def ax_trusted_fresh():
+    """Permission Accessibilité vue par un process neuf (Mac). True ailleurs."""
+    if sys.platform != "darwin":
+        return True
+    try:
+        return subprocess.run(self_cmd("--check-ax"), timeout=15,
+                              cwd=str(Path(__file__).resolve().parent.parent)).returncode == 0
+    except Exception:
+        return False
+
+
+def relaunch_later():
+    """Relance done. dans 2 s (le temps que cette copie se ferme)."""
+    if getattr(sys, "frozen", False) and sys.platform == "darwin":
+        app = Path(sys.executable).resolve().parents[2]
+        cmd = f'sleep 2; open -n "{app}" --args --background'
+    else:
+        args = " ".join(f'"{a}"' for a in self_cmd("--background"))
+        cmd = f"sleep 2; {args}"
+    subprocess.Popen(["/bin/sh", "-c", cmd], cwd=str(Path(__file__).resolve().parent.parent),
+                     start_new_session=True)
+
+
 def open_window(kind):
     subprocess.Popen(self_cmd("--ui", kind), cwd=str(Path(__file__).resolve().parent.parent))
 

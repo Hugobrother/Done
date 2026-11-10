@@ -54,15 +54,17 @@ def pair_window():
     perm_btn = ttk.Button(root, text="Allow Accessibility", command=detectors.request_permission)
 
     def refresh_perm():
-        ok, _ = detectors.status()
-        if sys.platform == "darwin" and not ok:
-            perm.config(text="⚠  Step 0: allow done. in Accessibility so it can see Claude.")
+        if sys.platform != "darwin":
+            return
+        if core.ax_trusted_fresh():
+            perm.config(text="✓  Accessibility allowed. done. restarted itself and is watching Claude.", foreground="#9BD5A6")
             perm.pack(anchor="w")
-            perm_btn.pack(anchor="w", pady=(4, 12))
-        else:
-            perm.pack_forget()
             perm_btn.pack_forget()
-        root.after(1500, refresh_perm)
+            return  # plus besoin de vérifier
+        perm.config(text="⚠  Step 0: allow done. in Accessibility so it can see Claude.\n     Turn on the “done” switch, nothing else to do.", foreground=ACCENT)
+        perm.pack(anchor="w")
+        perm_btn.pack(anchor="w", pady=(4, 12))
+        root.after(2000, refresh_perm)
 
     url = core.pair_url(cfg)
     img = qrcode.make(url, border=2, box_size=6).convert("RGB")
