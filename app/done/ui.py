@@ -112,7 +112,12 @@ def settings_window():
     root = _root("done. — Settings")
     v = {k: (tk.BooleanVar(value=cfg[k]) if isinstance(cfg[k], bool) else tk.StringVar(value=str(cfg[k]))) for k in core.DEFAULTS if k not in ("server", "topic", "onboarded")}
 
-    ttk.Label(root, text="Settings", style="H.TLabel").pack(anchor="w", pady=(0, 12))
+    ttk.Label(root, text="Settings", style="H.TLabel").pack(anchor="w")
+    where = {"darwin": "the bubble icon in your menu bar (top right; it can hide behind the notch)",
+             "win32": "the bubble icon in your system tray (bottom right, maybe behind the ^ arrow)"}.get(
+        sys.platform, "the bubble icon in your system tray")
+    ttk.Label(root, text=f"● done. is running. Look for {where}.", style="Muted.TLabel",
+              wraplength=440, justify="left").pack(anchor="w", pady=(2, 12))
 
     def block(title, en_key, text_key, loud_key, extra=None):
         f = ttk.LabelFrame(root, text=title, padding=14)
@@ -162,6 +167,12 @@ def settings_window():
     ttk.Button(b, text="Save", style="Accent.TButton", command=save).pack(side="right")
     ttk.Button(b, text="Cancel", command=root.destroy).pack(side="right", padx=8)
     ttk.Button(b, text="Pair phone…", command=lambda: core.open_window("pair")).pack(side="left")
+
+    def quit_all():
+        core.quit_running()
+        root.destroy()
+
+    ttk.Button(b, text="Quit done.", command=quit_all).pack(side="left", padx=8)
     root.mainloop()
 
 

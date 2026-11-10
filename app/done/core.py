@@ -94,6 +94,16 @@ def self_cmd(*args):
     return [sys.executable, "-m", "done", *args]
 
 
+def quit_running():
+    """Demande à la copie de done. qui tourne de s'arrêter."""
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", 47812), timeout=0.5) as s:
+            s.sendall(b"quit")
+    except OSError:
+        pass
+
+
 def open_window(kind):
     subprocess.Popen(self_cmd("--ui", kind), cwd=str(Path(__file__).resolve().parent.parent))
 
@@ -117,7 +127,7 @@ def set_autostart(enabled):
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>app.done</string>
-<key>ProgramArguments</key><array><string>/usr/bin/open</string><string>-g</string><string>{app}</string></array>
+<key>ProgramArguments</key><array><string>/usr/bin/open</string><string>-g</string><string>{app}</string><string>--args</string><string>--background</string></array>
 <key>RunAtLoad</key><true/>
 </dict></plist>
 """)
@@ -127,7 +137,7 @@ def set_autostart(enabled):
             import winreg
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
             if enabled:
-                winreg.SetValueEx(key, "done", 0, winreg.REG_SZ, f'"{exe}"')
+                winreg.SetValueEx(key, "done", 0, winreg.REG_SZ, f'"{exe}" --background')
             else:
                 try:
                     winreg.DeleteValue(key, "done")
@@ -138,7 +148,7 @@ def set_autostart(enabled):
             f = Path.home() / ".config/autostart/done.desktop"
             if enabled:
                 f.parent.mkdir(parents=True, exist_ok=True)
-                f.write_text(f"[Desktop Entry]\nType=Application\nName=done.\nExec=\"{exe}\"\nX-GNOME-Autostart-enabled=true\n")
+                f.write_text(f"[Desktop Entry]\nType=Application\nName=done.\nExec=\"{exe}\" --background\nX-GNOME-Autostart-enabled=true\n")
             elif f.exists():
                 f.unlink()
     except Exception as e:

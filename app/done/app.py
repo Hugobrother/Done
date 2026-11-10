@@ -1,5 +1,5 @@
 """Process principal : icône dans la barre de menus / zone de notification + boucle de détection."""
-import sys, threading, time
+import socket, sys, threading, time
 
 import pystray
 from PIL import Image, ImageDraw
@@ -65,7 +65,46 @@ class Engine(threading.Thread):
             time.sleep(INTERVAL)
 
 
+PORT = 47812  # port local : une seule copie de done. à la fois
+_hooks = {}   # "quit" -> fonction qui arrête l'icône
+
+
+def _already_running():
+    """Si done. tourne déjà, lui demande d'afficher sa fenêtre et renvoie True."""
+    try:
+        with socket.create_connection(("127.0.0.1", PORT), timeout=0.5) as s:
+            s.sendall(b"show")
+        return True
+    except OSError:
+        return False
+
+
+def _listen_for_show():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        srv.bind(("127.0.0.1", PORT))
+    except OSError:
+        return
+    srv.listen(4)
+
+    def loop():
+        while True:
+            conn, _ = srv.accept()
+            with conn:
+                msg = conn.recv(16)
+                if msg.startswith(b"show"):
+                    core.open_window("settings")
+                elif msg.startswith(b"quit") and "quit" in _hooks:
+                    _hooks["quit"]()
+
+    threading.Thread(target=loop, daemon=True).start()
+
+
 def main():
+    if _already_running():
+        return  # l'instance existante ouvre sa fenêtre
+    _listen_for_show()
+    background = "--background" in sys.argv  # lancé au démarrage de l'ordi : silencieux
     state = {"cfg": core.load(), "mtime": core.mtime()}
 
     def reload_loop():
@@ -116,6 +155,7 @@ def main():
     )
 
     icon = pystray.Icon("done", make_icon(), "done.", menu)
+    _hooks["quit"] = icon.stop
     if sys.platform == "darwin":
         icon.icon = make_icon(44)
 
@@ -124,6 +164,9 @@ def main():
         detectors.request_permission()
         core.set_autostart(state["cfg"]["autostart"])
         core.open_window("pair")
+    elif not background:
+        # ouvert à la main : on montre toujours une fenêtre (l'icône peut être cachée par l'encoche)
+        core.open_window("settings")
 
     Engine(state).start()
     threading.Thread(target=reload_loop, daemon=True).start()
