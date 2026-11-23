@@ -1,0 +1,4 @@
+node_modules/
+.cap/
+film.html
+__pycache__/

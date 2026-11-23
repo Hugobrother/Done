@@ -98,6 +98,10 @@ header a{pointer-events:auto;color:#FAF9F5;text-decoration:none;background:rgba(
 
 /* ---------- FILM ---------- */
 #film{position:relative;height:100vh;height:100svh;overflow:hidden;background:#0B0A0C;--bt:9vh;--bb:18vh}
+#flive{position:absolute;inset:0;z-index:0}
+#fvid{position:absolute;left:0;top:var(--bt);width:100%;height:calc(100% - var(--bt) - var(--bb));object-fit:cover;display:none;background:#000;z-index:0;pointer-events:none}
+#film.vmode #flive{display:none}#film.vmode #fvid{display:block}#film.vcontain #fvid{object-fit:contain}
+#film.lite1 .fgrain{animation:none}#film.lite1 #ffg,#film.lite1 #fMotes,#film.lite1 [fill^="url(#p"]{display:none}
 #film-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 #fpov{position:absolute;inset:0;z-index:1;opacity:0;visibility:hidden;overflow:hidden;background:#0A090B}
 .pv-bg{position:absolute;inset:-6%}
@@ -336,7 +340,7 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
 .static #c1{width:auto}
 .static .cap.C{text-align:left}
 .static .cta-btns{justify-content:flex-start}
-.static .devices,.static .cue,.static .stage .glow,.static .fstate,.static #cursor,.static #ffg,.static #ftime,.static #fpov{display:none}
+.static .devices,.static .cue,.static .stage .glow,.static .fstate,.static #cursor,.static #ffg,.static #ftime,.static #fpov,.static #fvid{display:none}
 .static .fcap span:last-child{opacity:1}
 .static .push{opacity:1}
 @media (prefers-reduced-motion:reduce){.grain,.feed-track,.wave span,.dots span,.post::after,.marquee div,.float.f1 i{animation:none}}
@@ -392,7 +396,7 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
 
 <!-- ===================== FILM (auto-play, scroll en pause) ===================== -->
 <section id="film">
-<svg id="film-svg" viewBox="0 0 1200 760" aria-hidden="true">
+<div id="flive"><svg id="film-svg" viewBox="0 0 1200 760" aria-hidden="true">
   <defs>
     <linearGradient id="gSkyDay" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A5CA0"/><stop offset=".55" stop-color="#D98474"/><stop offset="1" stop-color="#FFB56A"/></linearGradient>
     <linearGradient id="gSkyNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B1030"/><stop offset="1" stop-color="#2A3266"/></linearGradient>
@@ -697,8 +701,9 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
   </div></div></div>
 </div>
 
+<div id="fflashHtml" aria-hidden="true"></div></div>
+<video id="fvid" muted playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1" aria-hidden="true"></video>
 <div class="fvig" aria-hidden="true"></div>
-<div id="fflashHtml" aria-hidden="true"></div>
 <div class="fgrain" aria-hidden="true"></div>
 <div class="fbarT" id="fbarT" aria-hidden="true"></div>
 <div class="fbarB" id="fbarB" aria-hidden="true"></div>
@@ -952,10 +957,16 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
   }
 
   // =====================================================================
-  // FILM (joué en temps réel, scroll en pause) : caméra virtuelle + lumière
+  // FILM (scroll en pause la 1re fois). Deux façons de le jouer, même montage :
+  //  - "video" : le film pré-calculé (film-wide / film-tall). Zéro calcul → fluide sur n'importe quelle machine.
+  //              La vidéo sert d'horloge : la timeline GSAP la suit pour les textes, le compteur, la fin.
+  //  - "live"  : la scène SVG animée en direct (secours : format d'écran atypique, vidéo refusée ou en erreur).
   // =====================================================================
   var filmEl = $("#film"), svg = $("#film-svg"), camEl = $("#fCam"), bgEl = $("#fBg"), fgEl = $("#ffg");
-  var filmDone = false, filmPlaying = false, replaying = false, ftl, filmEnd, dive = null;
+  var vid = $("#fvid");
+  var filmDone = false, filmPlaying = false, replaying = false, ftl, filmEnd, diveTl;
+  var mode = "live", vidKind = null, vidReady = false, active = false, amb = [], TL_DUR = 0, DIVE = 0.7;
+  var capFade = null, syncing = false, overDone = false, diving = false, vidFailed = false, lite = 0, gT = 0, gN = 0, gS = 0;
   // repère : 1200 unités = largeur de l'écran ; "safe" = zone entre les bandes noires
   var VP = { ppu: 1, safe: 560, cy: 380 };
   function fitFilm() {
@@ -978,7 +989,7 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
   camD.r = camM.r = 0;
   var shake = { x: 0, y: 0, r: 0 }, hand = { a: 1 }, blurP = { b: 0 };
   function applyCam() {
-    var c = isDesk() ? camD : camM, t = gsap.ticker.time;
+    var c = isDesk() ? camD : camM, t = ftl ? ftl.time() : 0;   // dérive calée sur le temps du film : rendu identique à chaque lecture
     var z = Math.min(1200 / Math.exp(c.lw), VP.safe / Math.exp(c.lh));
     // caméra à l'épaule : dérive lente, constante à l'écran quel que soit le zoom
     var dx = (Math.sin(t * 0.83) * 6 + Math.sin(t * 0.31 + 1.3) * 9) * hand.a;
@@ -988,14 +999,22 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
     camEl.setAttribute("transform", "translate(600 " + VP.cy.toFixed(2) + ") rotate(" + r.toFixed(3) + ") scale(" + z.toFixed(4) + ") translate(" + (-x).toFixed(2) + " " + (-y).toFixed(2) + ")");
     bgEl.setAttribute("transform", "translate(" + ((x - 600) * 0.1).toFixed(2) + " " + ((y - 380) * 0.05).toFixed(2) + ")");
     fgEl.style.transform = "translate3d(" + (-(x - 620) * z * VP.ppu * 0.5).toFixed(1) + "px," + (-(y - 400) * z * VP.ppu * 0.5).toFixed(1) + "px,0) scale(" + (0.75 + 0.3 * z).toFixed(3) + ")";
-    svg.style.filter = blurP.b > 0.4 ? "blur(" + blurP.b.toFixed(1) + "px)" : "";
+    svg.style.filter = blurP.b > 0.4 && !lite ? "blur(" + blurP.b.toFixed(1) + "px)" : "";
+    // si le rendu en direct rame : on coupe les détails coûteux, puis on passe à 30 images/s (régulier plutôt que saccadé)
+    if (active) {
+      var now = performance.now();
+      if (gT && now - gT < 250) { gS += now - gT; if (++gN >= 40) { var avg = gS / gN; gS = gN = 0; if (avg > 24 && lite < 2) setLite(lite + 1); } }
+      gT = now;
+    }
+  }
+  function setLite(n) { lite = n; filmEl.classList.add("lite" + n); if (n >= 2) gsap.ticker.fps(30); }
+  // le rendu en direct ne tourne QUE pendant que le film joue ; à l'arrêt c'est une image fixe, zéro calcul
+  function setActive(on) {
+    if (on === active) return; active = on; gT = 0;
+    if (on) { gsap.ticker.add(applyCam); amb.forEach(function (a) { a.resume(); }); if (lite >= 2) gsap.ticker.fps(30); }
+    else { gsap.ticker.remove(applyCam); amb.forEach(function (a) { a.pause(); }); gsap.ticker.fps(0); }
   }
   applyCam();
-  var camOn = false;
-  ScrollTrigger.create({ trigger: "#film", start: "top bottom", end: "bottom top", onToggle: function (s) {
-    if (s.isActive && !camOn) { gsap.ticker.add(applyCam); camOn = true; }
-    else if (!s.isActive && camOn) { gsap.ticker.remove(applyCam); camOn = false; }
-  } });
 
   (function buildFilm() {
     var J = { back: "#fBack", torso: ".fTorso", head: "#fHead", uArm: "#fUArm", lArm: "#fLArm", uArmF: "#fUArmF", lArmF: "#fLArmF", thigh: "#fThigh", shin: "#fShin", thighF: "#fThighF", shinF: "#fShinF" };
@@ -1042,19 +1061,20 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
     gsap.set("#pvPush", { yPercent: -180, opacity: 1 });
     gsap.set("#pvHeart", { scale: 0, transformOrigin: "50% 50%" });
 
-    // ---------- ambiance permanente ----------
-    gsap.to("#fThink circle", { y: -2.2, duration: 0.3, yoyo: true, repeat: -1, stagger: 0.1, ease: "sine.inOut" });
-    gsap.to("#fCaretCode", { opacity: 0, duration: 0.01, repeat: -1, repeatDelay: 0.5, yoyo: true });
-    gsap.to("#fClouds", { x: 70, duration: 9, ease: "none", repeat: -1, yoyo: true });
-    gsap.to("#fSteam", { y: -6, opacity: 0.12, duration: 1.6, yoyo: true, repeat: -1, ease: "sine.inOut" });
-    gsap.to("#fLedFloor", { opacity: 0.4, duration: 1.9, yoyo: true, repeat: -1, ease: "sine.inOut" });
-    gsap.to("#fSpill", { opacity: 0.8, duration: 0.11, yoyo: true, repeat: -1, repeatDelay: 1.3, ease: "none" });
-    gsap.to(".fTorso", { scaleX: 1.016, scaleY: 1.006, duration: 1.9, yoyo: true, repeat: -1, ease: "sine.inOut" });   // il respire
-    gsap.to(".pv-drift", { x: 7, y: -5, rotation: 0.7, duration: 2.3, yoyo: true, repeat: -1, ease: "sine.inOut" });
-    gsap.to(".pv-bg", { x: -14, y: 8, duration: 3.1, yoyo: true, repeat: -1, ease: "sine.inOut" });
+    // ---------- ambiance (uniquement pendant la lecture en direct) ----------
+    amb.push(gsap.to("#fThink circle", { y: -2.2, duration: 0.3, yoyo: true, repeat: -1, stagger: 0.1, ease: "sine.inOut" }));
+    amb.push(gsap.to("#fCaretCode", { opacity: 0, duration: 0.01, repeat: -1, repeatDelay: 0.5, yoyo: true }));
+    amb.push(gsap.to("#fClouds", { x: 70, duration: 9, ease: "none", repeat: -1, yoyo: true }));
+    amb.push(gsap.to("#fSteam", { y: -6, opacity: 0.12, duration: 1.6, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+    amb.push(gsap.to("#fLedFloor", { opacity: 0.4, duration: 1.9, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+    amb.push(gsap.to("#fSpill", { opacity: 0.8, duration: 0.11, yoyo: true, repeat: -1, repeatDelay: 1.3, ease: "none" }));
+    amb.push(gsap.to(".fTorso", { scaleX: 1.016, scaleY: 1.006, duration: 1.9, yoyo: true, repeat: -1, ease: "sine.inOut" }));   // il respire
+    amb.push(gsap.to(".pv-drift", { x: 7, y: -5, rotation: 0.7, duration: 2.3, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+    amb.push(gsap.to(".pv-bg", { x: -14, y: 8, duration: 3.1, yoyo: true, repeat: -1, ease: "sine.inOut" }));
     $$(".fMote").forEach(function (m, i) {
-      gsap.to(m, { x: 30 + (i % 5) * 9, y: -24 - (i % 4) * 10, duration: 5 + (i % 6), yoyo: true, repeat: -1, ease: "sine.inOut", delay: -i });
+      amb.push(gsap.to(m, { x: 30 + (i % 5) * 9, y: -24 - (i % 4) * 10, duration: 5 + (i % 6), yoyo: true, repeat: -1, ease: "sine.inOut", delay: -i }));
     });
+    amb.forEach(function (a) { a.pause(); });
 
     var tl = ftl = gsap.timeline({ paused: true, onUpdate: function () { gsap.set("#fbar", { scaleX: tl.progress() }); }, onComplete: filmOver });
     function toPose(p, at, dur, ease, keys) {
@@ -1083,7 +1103,7 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
 
     // ============ PLAN 1 — dans l'écran : il écrit son prompt ============
     tl.set(camD, Object.assign(F(1012, 372, 150, 80), { r: 0 }), 0).set(camM, Object.assign(F(1018, 377, 88, 60), { r: 0 }), 0);
-    tl.set(".pv-act i.h", { color: "#fff" }, 0);
+    tl.set(".pv-act i.h", { color: "#fff" }, 0).set("#film-svg, #ffg", { visibility: "visible" }, 0);
     camTo(F(1004, 366, 176, 94), F(1016, 374, 98, 70), 0, 1.25, "none");
     cap("#fc1", 0.15, 2.0);
     tl.to("#fT1", { attr: { width: 46 }, duration: 0.5, ease: "steps(17)" }, 0.2)
@@ -1142,7 +1162,8 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
     tl.set("#fpov", { visibility: "visible" }, P0 + 0.3)
       .fromTo("#fpov", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, P0 + 0.3)
       .fromTo("#pvRig", { scale: 0.45, rotation: -17, y: 70 }, { scale: 1, rotation: -5, y: 0, duration: 0.65, ease: "power3.out" }, P0 + 0.3)
-      .fromTo("#pvFeed", { yPercent: 0 }, { yPercent: 0, duration: 0.01 }, P0);
+      .fromTo("#pvFeed", { yPercent: 0 }, { yPercent: 0, duration: 0.01 }, P0)
+      .set("#film-svg, #ffg", { visibility: "hidden" }, P0 + 0.55);   // la pièce est cachée derrière le gros plan : inutile de la redessiner
 
     // ============ GROS PLAN — il scrolle des vidéos débiles, les heures filent ============
     tl.to("#ftime", { opacity: 1, duration: 0.25 }, P0 + 0.5)
@@ -1185,7 +1206,8 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
     // ============ DÉZOOM — retour dans la pièce : il fait nuit, l'IA a fini, petit sursaut ============
     var P1 = T + 0.9;
     whip(P1 + 0.1);
-    tl.to("#pvRig", { scale: 0.4, rotation: -15, y: 60, duration: 0.36, ease: "power2.in" }, P1)
+    tl.set("#film-svg, #ffg", { visibility: "visible" }, P1 + 0.12)
+      .to("#pvRig", { scale: 0.4, rotation: -15, y: 60, duration: 0.36, ease: "power2.in" }, P1)
       .to("#fpov", { opacity: 0, duration: 0.16, ease: "none" }, P1 + 0.2)
       .set("#fpov", { visibility: "hidden" }, P1 + 0.37);
     camTo(F(650, 396, 1010, 540), F(445, 410, 540, 560), P1 + 0.2, 0.6, "back.out(1.15)", -1);
@@ -1237,38 +1259,130 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
       .to("#fHead", { rotation: "+=4", duration: 0.3, yoyo: true, repeat: 1 }, Ty + 0.2)
       .to({}, { duration: 0.15 }, Ty + 1.2);
 
-    // état « film vu » : plan final, sans aucun texte qui traîne
+    TL_DUR = tl.duration();
+    // plongée finale dans le badge orange (jouée en direct, ou déjà incluse à la fin de la vidéo)
+    diveTl = gsap.timeline({ paused: true })
+      .to([camD, camM], { x: 806, y: 238, lw: Math.log(170), lh: Math.log(110), r: 0, duration: DIVE, ease: "power3.in" }, 0)
+      .fromTo("#fIris", { opacity: 1, scale: 1 }, { scale: 95, duration: DIVE, ease: "power3.in", immediateRender: false }, 0);
+
+    // état « film vu » : plan final figé, sans aucun texte qui traîne
     filmEnd = function () {
-      if (dive) { dive.kill(); dive = null; }   // surtout pas killTweensOf(cam) : ça tuerait les plans de la timeline
-      gsap.killTweensOf(["#fIris", "#fbarT", "#fbarB", ".fcap span"]);
+      diveTl.pause(); stopSync(); diving = false;
+      gsap.killTweensOf(["#fbarT", "#fbarB"]);          // (jamais killTweensOf sur un élément animé par la timeline : ça tuerait ses plans)
+      if (capFade) { capFade.kill(); capFade = null; }
       gsap.set(camD, Object.assign({ r: 0.9 }, END_D)); gsap.set(camM, Object.assign({ r: 0.9 }, END_M));
       gsap.set("#fIris", { opacity: 0, scale: 1 });
-      gsap.set("#fbarT, #fbarB", { yPercent: 0 });
+      gsap.set("#fbarT, #fbarB", { yPercent: 0, backgroundColor: "#000" });
       gsap.set(".fcap span, #fstate, #ftime", { opacity: 0 });
       gsap.set("#fbar", { scaleX: 0 });
-      applyCam();
+      gsap.set("#film-svg, #ffg", { visibility: "visible" });
+      setActive(false);
+      if (useVideo()) { setMode("video"); vid.pause(); seekVid(TL_DUR - 0.03); } else { setMode("live"); applyCam(); }
     };
   })();
 
-  // 1re fois : les bandes s'ouvrent, la caméra plonge dans le badge orange qui devient la page suivante
+  // ---------- vidéo ----------
+  var VIDS = { wide: 2.4, tall: 0.74 };   // rapport largeur/hauteur des deux rendus
+  function vidExt() {
+    if (!vid.canPlayType) return null;
+    if (vid.canPlayType('video/mp4; codecs="avc1.64002A"')) return "mp4";    // H.264 : décodé par le matériel partout
+    if (vid.canPlayType('video/webm; codecs="vp9"')) return "webm";
+    return null;
+  }
+  function pickVideo() {   // la vidéo dont le format colle le mieux à l'écran ; elle remplit l'image (léger rognage),
+    var W = filmEl.clientWidth, H = filmEl.clientHeight - $("#fbarT").offsetHeight - $("#fbarB").offsetHeight;   // ou s'affiche entière si l'écran est trop différent
+    if (!vidExt() || W < 10 || H < 10) return null;
+    var best = null, bf = 0;
+    for (var k in VIDS) { var r = (W / H) / VIDS[k], f = Math.min(r, 1 / r); if (f > bf) { bf = f; best = k; } }
+    filmEl.classList.toggle("vcontain", bf < 0.74);
+    return best;
+  }
+  function useVideo() { return !!vidKind && vidReady; }
+  function seekVid(t) { try { vid.currentTime = t; } catch (e) {} }
+  function setMode(m) { if (mode === m) return; mode = m; filmEl.classList.toggle("vmode", m === "video"); if (m === "video") setActive(false); }
+  function stopSync() { if (syncing) { gsap.ticker.remove(vsync); syncing = false; } }
+  function loadVideo() {
+    var k = vidFailed ? null : pickVideo();
+    if (k === vidKind) return;
+    if (filmPlaying || replaying) return;            // jamais de changement en pleine lecture
+    vidKind = k; vidReady = false; setMode("live");
+    if (k) { vid.muted = true; vid.src = "film-" + k + "." + vidExt(); vid.load(); } else { vid.removeAttribute("src"); try { vid.load(); } catch (e) {} }
+  }
+  function videoFail() {   // fichier absent, format refusé, lecture bloquée… → on repasse en direct sans rien casser
+    var was = mode === "video" && (filmPlaying || replaying) && !diving;
+    vidFailed = true; vidKind = null; vidReady = false; stopSync(); setMode("live");
+    if (was) runFilm();
+  }
+  vid.addEventListener("loadedmetadata", function () {
+    vidReady = true;
+    if (!filmPlaying && !replaying) { setMode("video"); seekVid(filmDone ? TL_DUR - 0.03 : 0); }
+  });
+  vid.addEventListener("error", function () { if (vidKind) videoFail(); });
+  // au tout premier geste de l'utilisateur, on « débloque » la vidéo pour que le navigateur accepte ensuite de la lancer seule
+  var GEST = ["touchend", "pointerup", "click", "keydown"];
+  function prime() {
+    GEST.forEach(function (n) { window.removeEventListener(n, prime, true); });
+    if (!useVideo() || filmPlaying || replaying || !vid.paused) return;
+    var p = vid.play();
+    if (p && p.then) p.then(function () { if (!syncing) { vid.pause(); seekVid(filmDone ? TL_DUR - 0.03 : 0); } }).catch(function () {});
+  }
+  GEST.forEach(function (n) { window.addEventListener(n, prime, true); });
+  // la vidéo est l'horloge : la timeline (textes, compteur, barre) se cale dessus à chaque image
+  function vsync() {
+    var t = vid.currentTime;
+    if (!overDone) {
+      if (t < TL_DUR - 0.02 && !vid.ended) ftl.time(t, false);
+      else { overDone = true; ftl.time(TL_DUR - 0.001, false); filmOver(); }
+    } else if (diving && (vid.ended || t >= TL_DUR + DIVE - 0.05)) { diving = false; stopSync(); afterDive(); }
+  }
+  // (re)lance le film depuis le début : en vidéo si elle est prête, sinon en direct
+  function runFilm() {
+    overDone = false; diving = false; stopSync();
+    if (useVideo()) {
+      setMode("video"); ftl.pause(0); seekVid(0);
+      var p = vid.play();
+      if (p && p.catch) p.catch(function (e) {
+        if (!(mode === "video" && (filmPlaying || replaying) && vid.paused && !overDone)) return;
+        // lecture auto refusée (économie d'énergie…) : elle sera acceptée au prochain geste (le doigt qui se lève) ; sinon direct
+        if (e && e.name === "NotAllowedError") { var done = false, go = function () {
+          if (done) return; done = true; GEST.forEach(function (n) { window.removeEventListener(n, go, true); });
+          if (!(mode === "video" && (filmPlaying || replaying) && vid.paused && !overDone)) return;
+          var q = vid.play(); if (q && q.catch) q.catch(videoFail);
+        }; GEST.forEach(function (n) { window.addEventListener(n, go, true); });
+          gsap.delayedCall(1.6, function () { if (!done) { done = true; GEST.forEach(function (n) { window.removeEventListener(n, go, true); }); if (mode === "video" && vid.paused && (filmPlaying || replaying) && !overDone) videoFail(); } });
+        } else videoFail();
+      });
+      syncing = true; gsap.ticker.add(vsync);
+      // garde-fou : si la vidéo n'a pas démarré au bout de 2,5 s (réseau, économie d'énergie…), on joue en direct
+      gsap.delayedCall(3.2, function () { if (syncing && !overDone && vid.currentTime < 0.05) videoFail(); });
+    } else { setMode("live"); setActive(true); ftl.restart(); }
+  }
+
+  function afterDive() {   // l'orange remplit l'écran → page suivante
+    gsap.set("#wipe", { display: "block", yPercent: 0, clipPath: "none" });
+    filmDone = true; filmPlaying = false;
+    var yy = topOf($("#exp")); lockY = yy; window.scrollTo(0, yy); ScrollTrigger.update();
+    filmEnd();
+    gsap.fromTo("#stageIn", { scale: 1.14 }, { scale: 1, duration: 1.1, ease: "expo.out" });
+    gsap.to("#wipe", { yPercent: -100, duration: 0.8, ease: "power4.inOut", onComplete: function () { gsap.set("#wipe", { display: "none" }); unlock(); } });
+  }
+  // 1re fois : la caméra plonge dans le badge orange qui devient la page suivante
   function finale() {
-    gsap.to("#fstate, .fcap span", { opacity: 0, duration: 0.2 });
+    capFade = gsap.to("#fstate, .fcap span", { opacity: 0, duration: 0.2 });
+    if (mode === "video") {   // la plongée est dans la vidéo ; les bandes virent à l'orange quand l'image est pleine
+      diving = true;
+      gsap.to("#fbarT, #fbarB", { backgroundColor: "#D97757", duration: 0.12, delay: DIVE - 0.14 });
+      return;
+    }
     gsap.to("#fbarT", { yPercent: -101, duration: 0.5, ease: "power3.in" });
     gsap.to("#fbarB", { yPercent: 101, duration: 0.5, ease: "power3.in" });
-    dive = gsap.to([camD, camM], { x: 806, y: 238, lw: Math.log(170), lh: Math.log(110), r: 0, duration: 0.7, ease: "power3.in" });
-    gsap.set("#fIris", { opacity: 1, scale: 1 });
-    gsap.to("#fIris", { scale: 95, duration: 0.7, ease: "power3.in", onComplete: function () {
-      gsap.set("#wipe", { display: "block", yPercent: 0, clipPath: "none" });
-      filmDone = true; filmPlaying = false;
-      var yy = topOf($("#exp")); lockY = yy; window.scrollTo(0, yy); ScrollTrigger.update();
-      filmEnd();
-      gsap.fromTo("#stageIn", { scale: 1.14 }, { scale: 1, duration: 1.1, ease: "expo.out" });
-      gsap.to("#wipe", { yPercent: -100, duration: 0.8, ease: "power4.inOut", onComplete: function () { gsap.set("#wipe", { display: "none" }); unlock(); } });
-    } });
+    diveTl.eventCallback("onComplete", afterDive).invalidate().restart();
   }
   function filmOver() {
-    if (replaying) { replaying = false; gsap.to(".fcap span", { opacity: 0, duration: 0.5, delay: 0.6 }); }   // relance : on reste sur le plan final
-    else finale();
+    if (replaying) {   // relance : on reste sur le plan final
+      replaying = false; capFade = gsap.to(".fcap span", { opacity: 0, duration: 0.5, delay: 0.6 });
+      if (mode === "video") { vid.pause(); stopSync(); seekVid(TL_DUR - 0.03); } else setActive(false);
+    } else finale();
   }
   function skipFilm() { filmDone = true; ftl.progress(1, true); filmEnd(); }
   function startFilm() {   // 1re fois : scroll bloqué, on est obligé de le voir
@@ -1278,15 +1392,16 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
     lock(y);
     gsap.set(".fcap span", { opacity: 0 });
     ftl.pause(0);
-    scrollToY(y, 0.65, function () { gsap.to("#fstate", { opacity: 1, duration: 0.3 }); ftl.restart(); });
+    scrollToY(y, 0.65, function () { gsap.to("#fstate", { opacity: 1, duration: 0.3 }); runFilm(); });
   }
   // ensuite : dès qu'on revient dessus il se relance tout seul, scroll libre
-  function replay() { if (filmPlaying || !filmDone || replaying) return; replaying = true; filmEnd(); ftl.restart(); }
+  function replay() { if (filmPlaying || !filmDone || replaying) return; filmEnd(); replaying = true; runFilm(); }
   function stopReplay() { if (!replaying) return; replaying = false; ftl.pause(); ftl.progress(1, true); filmEnd(); }
   if (window.scrollY > topOf(filmEl) + 10) skipFilm();
   ScrollTrigger.create({ trigger: "#film", start: "top 90%", onEnter: function () { if (!filmDone && !filmPlaying) startFilm(); } });
   ScrollTrigger.create({ trigger: "#film", start: "top 45%", end: "bottom 55%", onEnter: replay, onEnterBack: replay, onLeave: stopReplay, onLeaveBack: stopReplay });
-  window.__doneFilm = { tl: ftl };
+  loadVideo();
+  window.__doneFilm = { tl: ftl, dive: diveTl, amb: amb, cam: applyCam, dur: TL_DUR, mode: function () { return mode + (lite ? " lite" + lite : ""); } };
 
   // liens internes : on saute le film et on défile en douceur
   $$('a[href^="#"]').forEach(function (a) {
@@ -1491,7 +1606,7 @@ footer{padding:28px 24px 40px;display:flex;flex-wrap:wrap;justify-content:space-
     rt = setTimeout(function () {
       if (innerWidth === lastW && Math.abs(innerHeight - lastH) < 120) return; // barre d'adresse mobile : on ignore
       lastW = innerWidth; lastH = innerHeight;
-      fitHero(); fitFilm();
+      fitHero(); fitFilm(); loadVideo();
       if (ctx) ctx.revert();
       buildExp(); ScrollTrigger.refresh();
     }, 200);
