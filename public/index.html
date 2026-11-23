@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>done. — stop losing hours waiting for AI</title>
+<title>done. — work, get distracted, come back on time</title>
 <meta name="description" content="done. pings your phone the second Claude finishes or needs your approval. Mac, Windows, Linux. Free beta.">
 <meta name="theme-color" content="#262624">
 <link rel="manifest" href="/manifest.json">
@@ -99,6 +99,14 @@ nav .btn{min-height:44px;padding:0 18px;border-radius:12px}
 .placeholder{border:1px dashed #5A5853;background:transparent}
 .placeholder p{color:var(--dim)}
 
+.flow{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.flow li{display:flex;align-items:center;gap:14px;font-size:19px;color:#D6D3CB}
+.flow li span{flex:none;width:32px;height:32px;border-radius:50%;background:#3A3A37;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--text)}
+.flow li.hot{color:var(--text);font-weight:500}
+.flow li.hot span{background:var(--accent);color:var(--ink)}
+.persona .tag{align-self:flex-start;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-soft)}
+.persona p{font-size:17px;color:var(--muted)}
+.facts{margin-top:16px}
 /* CTA + download */
 .cta{text-align:center;display:flex;flex-direction:column;align-items:center;gap:22px}
 .cta .lead{margin:0 auto}
@@ -133,7 +141,7 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
     <nav>
       <a href="#why">Why done.</a>
       <a href="#faq">FAQ</a>
-      <a class="btn" href="#download">Download free</a>
+      <a class="btn" href="#download">Get done. now</a>
     </nav>
   </div>
 </header>
@@ -142,11 +150,15 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
 <!-- ===================== HERO ===================== -->
 <section id="top" class="wrap hero" style="padding-bottom:96px">
   <div class="hero-text">
-    <p class="eyebrow">For students who work with AI</p>
-    <h1>Stop losing hours<br>waiting for AI.</h1>
-    <p class="lead">done. pings your phone the second Claude finishes, or needs your approval. Scroll guilt-free, come back right on time, and set alerts exactly the way you like them.</p>
+    <p class="eyebrow">For students, freelancers and vibe coders</p>
+    <h1>Finally, a perfect balance between work and distractions.</h1>
+    <ol class="flow" aria-label="How done. works">
+      <li><span>1</span>Send a prompt</li>
+      <li><span>2</span>Go back to your distraction</li>
+      <li class="hot"><span>3</span>We let you know when to come back</li>
+    </ol>
     <div class="row">
-      <a class="btn" id="dl-hero" href="#download">Download free</a>
+      <a class="btn" id="dl-hero" href="#download">Get done. now</a>
       <a class="btn ghost" href="#why">See how it works</a>
     </div>
     <div class="chips" aria-label="Works with">
@@ -168,14 +180,15 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
   <div class="wrap vp reveal">
     <div class="vp-text">
       <span class="num">01</span>
-      <h2>Send your prompt.<br>Live your life.</h2>
-      <p>Let the AI think while you do something else. done. watches Claude for you and calls you back the moment the answer is ready. No more checking the tab every 30 seconds.</p>
+      <h2>Let the AI think. Get back to work. We'll tell you when.</h2>
+      <p>When the AI is thinking, you don't need to stare at your screen. Go do something else: we'll send you a notification when it's finished, or when it needs you to take action.</p>
     </div>
     <div class="vp-visual" aria-hidden="true">
       <div class="tl">
-        <div class="tl-row"><div class="tl-dot"><i></i><b></b></div><div class="tl-body">You send a long prompt<small>“Summarise these 40 pages of lecture notes”</small></div></div>
-        <div class="tl-row"><div class="tl-dot"><i></i><b></b></div><div class="tl-body">You close the laptop lid halfway and go make a coffee<small>Claude keeps thinking</small></div></div>
-        <div class="tl-row hot"><div class="tl-dot"><i></i></div><div class="tl-body"><b>Ping.</b> “[Claude] has answered”<small>You're back exactly when it's ready</small></div></div>
+        <div class="tl-row"><div class="tl-dot"><i></i><b></b></div><div class="tl-body">You send a long prompt<small>“Refactor my project and write the tests”</small></div></div>
+        <div class="tl-row"><div class="tl-dot"><i></i><b></b></div><div class="tl-body">You work on something else<small>Claude keeps thinking in the background</small></div></div>
+        <div class="tl-row hot"><div class="tl-dot"><i></i><b></b></div><div class="tl-body"><b>Ping.</b> “[Claude] needs your approval”<small>One tap and it keeps going</small></div></div>
+        <div class="tl-row hot"><div class="tl-dot"><i></i></div><div class="tl-body"><b>Ping.</b> “[Claude] has answered”<small>You come back exactly when it's ready</small></div></div>
       </div>
     </div>
   </div>
@@ -187,7 +200,7 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
     <div class="vp-text">
       <span class="num">02</span>
       <h2>Prompt, scroll, get pinged.<br>No more lost hours.</h2>
-      <p>One reel turns into twenty and a two-minute wait becomes a lost evening. done. breaks the loop with a single ping, so you get back to work before the answer goes cold.</p>
+      <p>Some distractions are addictive, and sometimes you simply forget. With done., your phone tells you the moment the AI is done. No more excuses.</p>
     </div>
     <div class="vp-visual" aria-hidden="true">
       <div class="ba">
@@ -204,8 +217,8 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
   <div class="wrap vp reveal">
     <div class="vp-text">
       <span class="num">03</span>
-      <h2>Notifications that adapt to you.</h2>
-      <p>Loud or silent. Your own words. Only for long answers, or every time. A separate alert when Claude needs your approval to keep going. You decide how done. talks to you.</p>
+      <h2>An app that adapts to how you want to be notified.</h2>
+      <p>Personalize your notifications to your needs: loud or silent, in your own words, only for long answers, and a separate alert when the AI needs your approval.</p>
     </div>
     <div class="vp-visual" aria-hidden="true">
       <div class="set"><span>When Claude finishes</span><div class="tog"></div></div>
@@ -217,16 +230,30 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
   </div>
 </section>
 
-<!-- ===================== REASSURANCE / TESTIMONIALS ===================== -->
+<!-- ===================== REASSURANCE ===================== -->
 <section>
   <div class="wrap reveal">
-    <p class="eyebrow">Made by a student, for students</p>
-    <h2 style="margin-top:10px;max-width:760px">Simple, private, and free while in beta.</h2>
+    <p class="eyebrow">Who it's for</p>
+    <h2 style="margin-top:10px;max-width:820px">Get less distracted, be more efficient, save time.</h2>
+    <div class="quotes" style="margin-top:40px">
+      <div class="quote persona">
+        <span class="tag">The student</span>
+        <p>Scrolls social media between two prompts and loses track of time. With done., they switch between work and social media in real time, and finish their work earlier.</p>
+      </div>
+      <div class="quote persona">
+        <span class="tag">The freelancer parent</span>
+        <p>Works from home with kids and forgets to send the next prompt when the family needs them. With done., they wear the parent hat and the freelancer hat at the same time.</p>
+      </div>
+      <div class="quote persona">
+        <span class="tag">The vibe coder</span>
+        <p>Babysits their AI agent all day. With done., they only come back when it needs approval or when it's finished, and ship more in less time.</p>
+      </div>
+    </div>
     <div class="facts">
       <div class="fact">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
         <h3>Your chats stay yours</h3>
-        <p class="muted">done. only checks whether Claude's stop button is on screen. Nothing you write ever leaves your computer.</p>
+        <p class="muted">done. only checks whether the AI is still writing. Nothing you write ever leaves your computer.</p>
       </div>
       <div class="fact">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -236,14 +263,8 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
       <div class="fact">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>
         <h3>Open source</h3>
-        <p class="muted">Every line of code is public on <a href="https://github.com/Hugobrother/Done">GitHub</a>. Notifications go through ntfy, an open-source service.</p>
+        <p class="muted">Every line of code is public on <a href="https://github.com/Hugobrother/Done">GitHub</a>.</p>
       </div>
-    </div>
-    <!-- Témoignages : à remplacer par de vrais retours de bêta-testeurs (avec leur accord) -->
-    <div class="quotes">
-      <div class="quote placeholder"><p>[Beta tester quote: a student on how much time done. saved them]</p><div class="who"><i></i>[First name, school]</div></div>
-      <div class="quote placeholder"><p>[Beta tester quote: someone who used to lose the thread while scrolling]</p><div class="who"><i></i>[First name, school]</div></div>
-      <div class="quote placeholder"><p>[Beta tester quote: someone using approval alerts with Claude]</p><div class="who"><i></i>[First name, school]</div></div>
     </div>
   </div>
 </section>
@@ -251,9 +272,9 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
 <!-- ===================== CALL TO ACTION + DOWNLOAD ===================== -->
 <section id="download" class="band">
   <div class="wrap cta reveal">
-    <h2 style="max-width:780px">Let the AI think.<br>We'll tell you when it's done.</h2>
-    <p class="lead">Free during the beta. Works with the Claude app and claude.ai in Chrome, Safari, Edge, Brave and Firefox.</p>
-    <a class="btn pulse" id="dl-cta" href="#download-options">Download done. free</a>
+    <h2 style="max-width:820px">Stop wasting hours between two prompts.</h2>
+    <p class="lead">Join the beta now. It's free for a limited time.</p>
+    <a class="btn pulse" id="dl-cta" href="#download-options">Get done. now</a>
     <div class="dl" id="download-options">
       <div class="card">
         <h3>macOS</h3>
@@ -309,7 +330,7 @@ footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;
   else if (/Macintosh/.test(ua) && !("ontouchend" in document)) pick = ["done-mac.zip", "Download for Mac"];
   else if (/Linux/.test(ua) && !/Android/.test(ua)) pick = ["done-linux", "Download for Linux"];
   if (pick) ["dl-hero", "dl-cta"].forEach(function (id) {
-    var b = document.getElementById(id); b.href = base + pick[0]; b.textContent = pick[1] + " — free";
+    var b = document.getElementById(id); b.href = base + pick[0]; b.textContent = "Get done. for " + pick[1].replace("Download for ", "");
   });
 
   // Apparition douce des sections au scroll
